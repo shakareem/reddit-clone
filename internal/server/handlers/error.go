@@ -5,10 +5,16 @@ import (
 	"net/http"
 )
 
-func Error(w http.ResponseWriter, err string, code int) {
+type RequestError struct {
+	Location string `json:"location"`
+	Param    string `json:"param"`
+	Value    string `json:"value"`
+	Message  string `json:"msg"`
+}
+
+func Error(w http.ResponseWriter, code int, errs []RequestError) {
 	resp, _ := json.Marshal(map[string]any{
-		"status": code,
-		"error":  err,
+		"errors": errs,
 	})
 
 	http.Error(w, string(resp), code)

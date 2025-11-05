@@ -24,6 +24,8 @@ type InMemoryStorage struct {
 	mu    *sync.RWMutex
 }
 
+var ErrUserAlreadyExists = errors.New("already exists")
+
 func NewInMemoryStorage() *InMemoryStorage {
 	return &InMemoryStorage{map[string]User{}, &sync.RWMutex{}}
 }
@@ -48,7 +50,7 @@ func (s *InMemoryStorage) AddUser(name, password string) (User, error) {
 
 	_, ok := s.users[name]
 	if ok {
-		return User{}, errors.New("already registered")
+		return User{}, ErrUserAlreadyExists
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)

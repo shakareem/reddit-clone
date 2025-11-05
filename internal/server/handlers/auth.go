@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"redditclone/internal/storage"
@@ -28,21 +29,29 @@ func (h *UserHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		Error(w, "wrong request body, username & password expected", http.StatusBadRequest)
+		Error(w, http.StatusBadRequest, []RequestError{{
+			Location: "body",
+			Message:  "wrong request body, username & password expected",
+		}})
 		return
 	}
 
 	user, err := h.Storage.AddUser(req.UserName, req.Password)
-	if err != nil {
-		msg := fmt.Sprintf("could not add user: %v", err)
-		Error(w, msg, http.StatusConflict) // TODO: понять что возвращать, если юзер уже есть
+	if errors.Is(err, storage.ErrUserAlreadyExists) {
+		Error(w, http.StatusUnprocessableEntity, []RequestError{{
+			Location: "body",
+			Param:    "username",
+			Value:    req.UserName,
+			Message:  "already exists",
+		}})
 		return
 	}
 
 	token, err := generateJWT(user)
 	if err != nil {
-		msg := fmt.Sprintf("could not create token: %v", err)
-		Error(w, msg, http.StatusInternalServerError)
+		Error(w, http.StatusInternalServerError, []RequestError{{
+			Message: fmt.Sprintf("could not create token: %v", err),
+		}})
 		return
 	}
 
