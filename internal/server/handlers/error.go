@@ -12,7 +12,7 @@ type RequestError struct {
 	Message  string `json:"msg"`
 }
 
-func Error(w http.ResponseWriter, code int, errs []RequestError) {
+func jsonError(w http.ResponseWriter, code int, errs []RequestError) {
 	resp, _ := json.Marshal(map[string]any{
 		"errors": errs,
 	})

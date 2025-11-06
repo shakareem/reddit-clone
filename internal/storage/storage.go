@@ -11,7 +11,7 @@ import (
 type User struct {
 	ID       string
 	Name     string
-	Password string
+	Password []byte
 }
 
 type Storage interface {
@@ -25,6 +25,8 @@ type InMemoryStorage struct {
 }
 
 var ErrUserAlreadyExists = errors.New("already exists")
+var ErrUserNotFound = errors.New("user not found")
+var ErrInvalidPassword = errors.New("invalid password")
 
 func NewInMemoryStorage() *InMemoryStorage {
 	return &InMemoryStorage{map[string]User{}, &sync.RWMutex{}}
@@ -36,10 +38,13 @@ func (s *InMemoryStorage) GetUser(name, password string) (User, error) {
 
 	user, ok := s.users[name]
 	if !ok {
-		return User{}, errors.New("wrong username")
+		return User{}, ErrUserNotFound
 	}
 
-	// TODO: compare password with hash
+	err := bcrypt.CompareHashAndPassword(user.Password, []byte(password))
+	if err != nil {
+		return User{}, ErrInvalidPassword
+	}
 
 	return user, nil
 }
@@ -61,7 +66,7 @@ func (s *InMemoryStorage) AddUser(name, password string) (User, error) {
 	u := User{
 		ID:       uuid.NewString(),
 		Name:     name,
-		Password: string(hashedPassword),
+		Password: hashedPassword,
 	}
 	s.users[name] = u
 	return u, nil

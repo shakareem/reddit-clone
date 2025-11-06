@@ -17,19 +17,21 @@ type UserHandler struct {
 	Storage storage.Storage
 }
 
+type LogInRequest struct {
+	UserName string `json:"username"`
+	Password string `json:"password"`
+}
+
 func NewUserHandler(storage storage.Storage) *UserHandler {
 	return &UserHandler{Storage: storage}
 }
 
 func (h *UserHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		UserName string `json:"username"`
-		Password string `json:"password"`
-	}
+	var req LogInRequest
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		Error(w, http.StatusBadRequest, []RequestError{{
+		jsonError(w, http.StatusBadRequest, []RequestError{{
 			Location: "body",
 			Message:  "wrong request body, username & password expected",
 		}})
@@ -38,7 +40,7 @@ func (h *UserHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.Storage.AddUser(req.UserName, req.Password)
 	if errors.Is(err, storage.ErrUserAlreadyExists) {
-		Error(w, http.StatusUnprocessableEntity, []RequestError{{
+		jsonError(w, http.StatusUnprocessableEntity, []RequestError{{
 			Location: "body",
 			Param:    "username",
 			Value:    req.UserName,
@@ -49,7 +51,47 @@ func (h *UserHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	token, err := generateJWT(user)
 	if err != nil {
-		Error(w, http.StatusInternalServerError, []RequestError{{
+		jsonError(w, http.StatusInternalServerError, []RequestError{{
+			Message: fmt.Sprintf("could not create token: %v", err),
+		}})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(
+		struct {
+			Token string `json:"token"`
+		}{token},
+	)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *UserHandler) HandleLogIn(w http.ResponseWriter, r *http.Request) {
+	var req LogInRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		jsonError(w, http.StatusBadRequest, []RequestError{{
+			Location: "body",
+			Message:  "wrong request body, username & password expected",
+		}})
+		return
+	}
+
+	user, err := h.Storage.GetUser(req.UserName, req.Password)
+	if err != nil {
+		msg := fmt.Sprintf("{\"message\":\"%s\"}", err.Error())
+		http.Error(w, msg, http.StatusUnauthorized)
+		return
+	}
+
+	token, err := generateJWT(user)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, []RequestError{{
 			Message: fmt.Sprintf("could not create token: %v", err),
 		}})
 		return
