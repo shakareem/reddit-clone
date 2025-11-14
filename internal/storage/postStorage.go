@@ -59,7 +59,7 @@ type Post struct {
 }
 
 type PostStorage interface {
-	AddPost(RawPost, User) Post
+	AddPost(rawPost RawPost, authorName string, authorID string) Post
 }
 
 type PostInMemStorage struct {
@@ -71,7 +71,7 @@ func NewPostInMemStorage() *PostInMemStorage {
 	return &PostInMemStorage{map[string]Post{}, &sync.RWMutex{}}
 }
 
-func (s *PostInMemStorage) AddPost(rawPost RawPost, author User) Post {
+func (s *PostInMemStorage) AddPost(rawPost RawPost, authorName string, authorID string) Post {
 	post := Post{}
 	post.Type = rawPost.Type
 	post.Category = rawPost.Category
@@ -79,14 +79,14 @@ func (s *PostInMemStorage) AddPost(rawPost RawPost, author User) Post {
 	post.Content = rawPost.Content
 	post.ID = uuid.NewString()
 	post.Author = PostAuthor{
-		Name: author.Name,
-		ID:   author.ID,
+		Name: authorName,
+		ID:   authorID,
 	}
 	post.Score = 1
 	post.Views = 1
 	post.CreatedTime = time.Now().Format(time.RFC3339)
 	post.UpvotePercentage = 100
-	post.Votes = []Vote{{UserID: author.ID, Vote: UPVOTE}}
+	post.Votes = []Vote{{UserID: authorID, Vote: UPVOTE}}
 	post.Comments = []Comment{}
 
 	s.mu.Lock()

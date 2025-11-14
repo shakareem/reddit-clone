@@ -6,12 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"redditclone/internal/storage"
-	"time"
-
-	"github.com/golang-jwt/jwt/v5"
 )
-
-var jwtSecret = []byte("abc") // tmp
 
 type UserHandler struct {
 	Storage storage.UserStorage
@@ -109,18 +104,3 @@ func (h *UserHandler) HandleLogIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
-func generateJWT(user storage.User) (string, error) {
-	claims := jwt.MapClaims{
-		"user": map[string]string{
-			"id":       user.ID,
-			"username": user.Name,
-		},
-		"exp": time.Now().Add(24 * time.Hour).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
-}
-
-// category, text, title, type, как минимум айдишник
-//

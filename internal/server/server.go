@@ -8,12 +8,14 @@ import (
 	"time"
 )
 
-type RedditCloneServer struct {
+type Service struct {
 	Server  *http.Server
 	Storage storage.Storage
 }
 
-func NewServer() RedditCloneServer {
+const PORT = ":8081"
+
+func NewService() Service {
 	storage := storage.NewInMemStorage()
 	userHandler := handlers.NewUserHandler(storage)
 	postHandler := handlers.NewPostHandler(storage)
@@ -24,20 +26,20 @@ func NewServer() RedditCloneServer {
 
 	log.Println("Starting server on :8081")
 	server := &http.Server{
-		Addr:         ":8081",
+		Addr:         PORT,
 		Handler:      mux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 
-	return RedditCloneServer{
+	return Service{
 		Server:  server,
 		Storage: storage,
 	}
 }
 
-func (s *RedditCloneServer) Run() error {
+func (s *Service) Run() error {
 	return s.Server.ListenAndServe()
 }
 
