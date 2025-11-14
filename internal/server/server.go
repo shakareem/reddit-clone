@@ -56,6 +56,9 @@ func reqisterAPIHandlers(mux *http.ServeMux, userHandler *handlers.UserHandler, 
 	apiMux.HandleFunc("POST /register", userHandler.HandleRegister)
 	apiMux.HandleFunc("POST /login", userHandler.HandleLogIn)
 	apiMux.HandleFunc("POST /posts", postHandler.HandleNewPost)
+	apiMux.HandleFunc("GET /posts/", postHandler.HandleGetPosts)
+	apiMux.HandleFunc("GET /posts/{category}", postHandler.HandleGetCategoryPosts)
+	apiMux.HandleFunc("GET /user/{username}", postHandler.HandleGetUserPosts)
 
 	mux.Handle("/api/", http.StripPrefix("/api", apiMux))
 }

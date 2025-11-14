@@ -60,6 +60,7 @@ type Post struct {
 
 type PostStorage interface {
 	AddPost(rawPost RawPost, authorName string, authorID string) Post
+	GetPosts() []Post
 }
 
 type PostInMemStorage struct {
@@ -69,32 +70,6 @@ type PostInMemStorage struct {
 
 func NewPostInMemStorage() *PostInMemStorage {
 	return &PostInMemStorage{map[string]Post{}, &sync.RWMutex{}}
-}
-
-func (s *PostInMemStorage) AddPost(rawPost RawPost, authorName string, authorID string) Post {
-	post := Post{}
-	post.Type = rawPost.Type
-	post.Category = rawPost.Category
-	post.Title = rawPost.Title
-	post.Content = rawPost.Content
-	post.ID = uuid.NewString()
-	post.Author = PostAuthor{
-		Name: authorName,
-		ID:   authorID,
-	}
-	post.Score = 1
-	post.Views = 1
-	post.CreatedTime = time.Now().Format(time.RFC3339)
-	post.UpvotePercentage = 100
-	post.Votes = []Vote{{UserID: authorID, Vote: UPVOTE}}
-	post.Comments = []Comment{}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.posts[post.ID] = post
-
-	return post
 }
 
 func (p Post) MarshalJSON() ([]byte, error) {
@@ -148,4 +123,39 @@ func (p *Post) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func (s *PostInMemStorage) AddPost(rawPost RawPost, authorName string, authorID string) Post {
+	post := Post{}
+	post.Type = rawPost.Type
+	post.Category = rawPost.Category
+	post.Title = rawPost.Title
+	post.Content = rawPost.Content
+	post.ID = uuid.NewString()
+	post.Author = PostAuthor{
+		Name: authorName,
+		ID:   authorID,
+	}
+	post.Score = 1
+	post.Views = 1
+	post.CreatedTime = time.Now().Format(time.RFC3339)
+	post.UpvotePercentage = 100
+	post.Votes = []Vote{{UserID: authorID, Vote: UPVOTE}}
+	post.Comments = []Comment{}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.posts[post.ID] = post
+
+	return post
+}
+
+func (s *PostInMemStorage) GetPosts() []Post {
+	posts := make([]Post, 0, len(s.posts))
+	for _, p := range s.posts {
+		posts = append(posts, p)
+	}
+
+	return posts
 }
