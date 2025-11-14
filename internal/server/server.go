@@ -55,14 +55,14 @@ func reqisterAPIHandlers(mux *http.ServeMux, userHandler *handlers.UserHandler, 
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("POST /register", userHandler.HandleRegister)
 	apiMux.HandleFunc("POST /login", userHandler.HandleLogIn)
-	apiMux.HandleFunc("POST /posts", postHandler.HandleNewPost)
+	apiMux.Handle("POST /posts", handlers.WithAuth(http.HandlerFunc(postHandler.HandleNewPost)))
 	apiMux.HandleFunc("GET /posts/", postHandler.HandleGetPosts)
 	apiMux.HandleFunc("GET /posts/{category}", postHandler.HandleGetCategoryPosts)
 	apiMux.HandleFunc("GET /user/{username}", postHandler.HandleGetUserPosts)
 	apiMux.HandleFunc("GET /post/{id}", postHandler.HandleGetPostDetails)
-	apiMux.HandleFunc("GET /post/{id}/upvote", postHandler.HandleUpvote)
-	apiMux.HandleFunc("GET /post/{id}/downvote", postHandler.HandleDownvote)
-	apiMux.HandleFunc("GET /post/{id}/unvote", postHandler.HandleUnvote)
+	apiMux.Handle("GET /post/{id}/upvote", handlers.WithAuth(http.HandlerFunc(postHandler.HandleUpvote)))
+	apiMux.Handle("GET /post/{id}/downvote", handlers.WithAuth(http.HandlerFunc(postHandler.HandleDownvote)))
+	apiMux.Handle("GET /post/{id}/unvote", handlers.WithAuth(http.HandlerFunc(postHandler.HandleUnvote)))
 
 	mux.Handle("/api/", http.StripPrefix("/api", apiMux))
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"redditclone/internal/storage"
@@ -12,6 +13,10 @@ type PostHandler struct {
 	Storage storage.Storage
 }
 
+type key string
+
+const USER key = "user"
+
 func NewPostHandler(storage storage.Storage) PostHandler {
 	return PostHandler{
 		Storage: storage,
@@ -19,21 +24,10 @@ func NewPostHandler(storage storage.Storage) PostHandler {
 }
 
 func (h *PostHandler) HandleNewPost(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-
-	inToken := ""
-	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-		inToken = authHeader[7:]
-	}
-
-	claims, err := parseJWT(inToken)
-	if err != nil {
-		http.Error(w, "bad token", http.StatusUnauthorized)
-		return
-	}
+	user := r.Context().Value(USER).(UserClaims)
 
 	rawPost := &storage.RawPost{}
-	err = json.NewDecoder(r.Body).Decode(rawPost)
+	err := json.NewDecoder(r.Body).Decode(rawPost)
 	if err != nil {
 		jsonError(w, http.StatusBadRequest, []RequestError{{
 			Location: "post",
@@ -42,7 +36,7 @@ func (h *PostHandler) HandleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	post := h.Storage.AddPost(*rawPost, claims.User.Name, claims.User.ID)
+	post := h.Storage.AddPost(*rawPost, user.Name, user.ID)
 
 	w.WriteHeader(http.StatusCreated)
 	err = json.NewEncoder(w).Encode(&post)
@@ -144,18 +138,9 @@ func (h *PostHandler) HandleUnvote(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleVote(w http.ResponseWriter, r *http.Request, voteFunc func(id, userID string) (storage.Post, error)) {
-	authHeader := r.Header.Get("Authorization")
-	inToken := ""
-	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-		inToken = authHeader[7:]
-	}
-	claims, err := parseJWT(inToken)
-	if err != nil {
-		http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
-		return
-	}
+	user := r.Context().Value(USER).(UserClaims)
 
-	post, err := voteFunc(r.PathValue("id"), claims.User.ID)
+	post, err := voteFunc(r.PathValue("id"), user.ID)
 	if err != nil {
 		http.Error(w, `{"message":"invalid post id"}`, http.StatusBadRequest)
 		return
@@ -168,4 +153,23 @@ func handleVote(w http.ResponseWriter, r *http.Request, voteFunc func(id, userID
 			Message:  "Failed to encode post",
 		}})
 	}
+}
+
+func WithAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		inToken := ""
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			inToken = authHeader[7:]
+		}
+		claims, err := parseJWT(inToken)
+		if err != nil {
+			http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), USER, claims.User)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
