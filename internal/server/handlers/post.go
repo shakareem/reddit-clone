@@ -91,7 +91,7 @@ func (h *PostHandler) HandleGetCategoryPosts(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *PostHandler) HandleGetUserPosts(w http.ResponseWriter, r *http.Request) {
-	username := (r.PathValue("username"))
+	username := r.PathValue("username")
 
 	posts := []storage.Post{}
 	for _, p := range h.Storage.GetPosts() {
@@ -111,6 +111,61 @@ func (h *PostHandler) HandleGetUserPosts(w http.ResponseWriter, r *http.Request)
 		jsonError(w, http.StatusInternalServerError, []RequestError{{
 			Location: "post",
 			Message:  "Failed to encode posts",
+		}})
+	}
+}
+
+func (h *PostHandler) HandleGetPostDetails(w http.ResponseWriter, r *http.Request) {
+	postID := r.PathValue("id")
+
+	post, err := h.Storage.GetPost(postID)
+	if err != nil {
+		http.Error(w, `{"message":"invalid post id"}`, http.StatusBadRequest)
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(&post)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, []RequestError{{
+			Location: "post",
+			Message:  "Failed to encode post",
+		}})
+	}
+}
+
+func (h *PostHandler) HandleUpvote(w http.ResponseWriter, r *http.Request) {
+	handleVote(w, r, h.Storage.UpvotePost)
+}
+func (h *PostHandler) HandleDownvote(w http.ResponseWriter, r *http.Request) {
+	handleVote(w, r, h.Storage.DownvotePost)
+}
+func (h *PostHandler) HandleUnvote(w http.ResponseWriter, r *http.Request) {
+	handleVote(w, r, h.Storage.UnvotePost)
+}
+
+func handleVote(w http.ResponseWriter, r *http.Request, voteFunc func(id, userID string) (storage.Post, error)) {
+	authHeader := r.Header.Get("Authorization")
+	inToken := ""
+	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		inToken = authHeader[7:]
+	}
+	claims, err := parseJWT(inToken)
+	if err != nil {
+		http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	post, err := voteFunc(r.PathValue("id"), claims.User.ID)
+	if err != nil {
+		http.Error(w, `{"message":"invalid post id"}`, http.StatusBadRequest)
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(&post)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, []RequestError{{
+			Location: "post",
+			Message:  "Failed to encode post",
 		}})
 	}
 }

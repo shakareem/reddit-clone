@@ -59,6 +59,10 @@ func reqisterAPIHandlers(mux *http.ServeMux, userHandler *handlers.UserHandler, 
 	apiMux.HandleFunc("GET /posts/", postHandler.HandleGetPosts)
 	apiMux.HandleFunc("GET /posts/{category}", postHandler.HandleGetCategoryPosts)
 	apiMux.HandleFunc("GET /user/{username}", postHandler.HandleGetUserPosts)
+	apiMux.HandleFunc("GET /post/{id}", postHandler.HandleGetPostDetails)
+	apiMux.HandleFunc("GET /post/{id}/upvote", postHandler.HandleUpvote)
+	apiMux.HandleFunc("GET /post/{id}/downvote", postHandler.HandleDownvote)
+	apiMux.HandleFunc("GET /post/{id}/unvote", postHandler.HandleUnvote)
 
 	mux.Handle("/api/", http.StripPrefix("/api", apiMux))
 }

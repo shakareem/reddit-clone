@@ -2,6 +2,8 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -20,6 +22,7 @@ type UpDownVote int
 const (
 	UPVOTE   UpDownVote = 1
 	DOWNVOTE UpDownVote = -1
+	NOVOTE   UpDownVote = 0
 )
 
 type RawPost struct {
@@ -61,6 +64,10 @@ type Post struct {
 type PostStorage interface {
 	AddPost(rawPost RawPost, authorName string, authorID string) Post
 	GetPosts() []Post
+	GetPost(id string) (Post, error)
+	UpvotePost(postID, userID string) (Post, error)
+	DownvotePost(postID, userID string) (Post, error)
+	UnvotePost(postID, userID string) (Post, error)
 }
 
 type PostInMemStorage struct {
@@ -158,4 +165,106 @@ func (s *PostInMemStorage) GetPosts() []Post {
 	}
 
 	return posts
+}
+
+func (s *PostInMemStorage) GetPost(id string) (Post, error) {
+	post, ok := s.posts[id]
+	if !ok {
+		return Post{}, fmt.Errorf("post with id %s not found", id)
+	}
+
+	return post, nil
+}
+
+func (s *PostInMemStorage) UpvotePost(postID, userID string) (Post, error) {
+	post, ok := s.posts[postID]
+	if !ok {
+		return Post{}, fmt.Errorf("post with id %s not found", postID)
+	}
+	oldVote, found := updateVote(&post, userID, UPVOTE)
+	if found && oldVote == UPVOTE {
+		return post, nil
+	}
+	if found && oldVote == DOWNVOTE {
+		post.Score += 2
+	} else {
+		post.Score += 1
+	}
+
+	post.UpvotePercentage = countUpvotePercentage(post.Votes)
+	s.posts[postID] = post
+	return post, nil
+}
+
+func (s *PostInMemStorage) DownvotePost(postID, userID string) (Post, error) {
+	post, ok := s.posts[postID]
+	if !ok {
+		return Post{}, fmt.Errorf("post with id %s not found", postID)
+	}
+	oldVote, found := updateVote(&post, userID, DOWNVOTE)
+	if found && oldVote == DOWNVOTE {
+		return post, nil
+	}
+	if found && oldVote == UPVOTE {
+		post.Score -= 2
+	} else {
+		post.Score -= 1
+	}
+
+	post.UpvotePercentage = countUpvotePercentage(post.Votes)
+	s.posts[postID] = post
+	return post, nil
+}
+
+func (s *PostInMemStorage) UnvotePost(postID, userID string) (Post, error) {
+	post, ok := s.posts[postID]
+	if !ok {
+		return Post{}, fmt.Errorf("post with id %s not found", postID)
+	}
+	oldVote, found := updateVote(&post, userID, NOVOTE)
+	if found && oldVote == UPVOTE {
+		post.Score -= 1
+	}
+	if found && oldVote == DOWNVOTE {
+		post.Score += 1
+	}
+
+	post.UpvotePercentage = countUpvotePercentage(post.Votes)
+	s.posts[postID] = post
+	return post, nil
+}
+
+func updateVote(post *Post, userID string, newVote UpDownVote) (oldVote UpDownVote, found bool) {
+	for i, vote := range post.Votes {
+		if vote.UserID == userID {
+			oldVote = vote.Vote
+			if i == len(post.Votes)-1 {
+				post.Votes = post.Votes[:len(post.Votes)-1]
+			} else {
+				post.Votes = slices.Delete(post.Votes, i, i+1)
+			}
+			found = true
+			break
+		}
+	}
+
+	if newVote != 0 {
+		post.Votes = append(post.Votes, Vote{userID, newVote})
+	}
+	return
+}
+
+func countUpvotePercentage(votes []Vote) int {
+	if len(votes) == 0 {
+		return 0
+	}
+
+	upvotes := 0
+	for _, vote := range votes {
+		if vote.Vote == UPVOTE {
+			upvotes += 1
+		}
+	}
+
+	return int(float64(upvotes) / float64(len(votes)) * 100)
 }
