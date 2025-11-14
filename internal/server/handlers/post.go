@@ -45,6 +45,8 @@ func (h *PostHandler) HandleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *PostHandler) HandleDeletePost(w http.ResponseWriter, r *http.Request) {}
+
 func (h *PostHandler) HandleGetPosts(w http.ResponseWriter, r *http.Request) {
 	posts := h.Storage.GetPosts()
 
