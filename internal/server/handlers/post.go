@@ -45,7 +45,29 @@ func (h *PostHandler) HandleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *PostHandler) HandleDeletePost(w http.ResponseWriter, r *http.Request) {}
+func (h *PostHandler) HandleDeletePost(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value(USER).(UserClaims)
+	postID := r.PathValue("id")
+
+	post, err := h.Storage.GetPost(postID)
+	if err != nil {
+		http.Error(w, `{"message":"invalid post id"}`, http.StatusBadRequest)
+		return
+	}
+
+	if post.Author.ID != user.ID {
+		http.Error(w, `{"message":"permission denied"}`, http.StatusForbidden)
+		return
+	}
+
+	err = h.Storage.DeletePost(postID)
+	if err != nil {
+		http.Error(w, `{"message":"invalid post id"}`, http.StatusBadRequest)
+		return
+	}
+
+	w.Write([]byte(`{"message":"success"}`))
+}
 
 func (h *PostHandler) HandleGetPosts(w http.ResponseWriter, r *http.Request) {
 	posts := h.Storage.GetPosts()

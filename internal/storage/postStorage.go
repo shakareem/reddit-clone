@@ -63,6 +63,7 @@ type Post struct {
 
 type PostStorage interface {
 	AddPost(rawPost RawPost, authorName string, authorID string) Post
+	DeletePost(id string) error
 	GetPosts() []Post
 	GetPost(id string) (Post, error)
 	UpvotePost(postID, userID string) (Post, error)
@@ -156,6 +157,16 @@ func (s *PostInMemStorage) AddPost(rawPost RawPost, authorName string, authorID 
 	s.posts[post.ID] = post
 
 	return post
+}
+
+func (s *PostInMemStorage) DeletePost(id string) error {
+	_, ok := s.posts[id]
+	if !ok {
+		return fmt.Errorf("post with id %s not found", id)
+	}
+
+	delete(s.posts, id)
+	return nil
 }
 
 func (s *PostInMemStorage) GetPosts() []Post {

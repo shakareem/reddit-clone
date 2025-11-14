@@ -17,7 +17,7 @@ func ReqisterAPIHandlers(mux *http.ServeMux, storage storage.Storage) {
 	apiMux.HandleFunc("GET /user/{username}", postHandler.HandleGetUserPosts)
 	apiMux.HandleFunc("GET /post/{id}", postHandler.HandleGetPostDetails)
 	apiMux.Handle("POST /posts", WithAuth(http.HandlerFunc(postHandler.HandleNewPost)))
-	apiMux.Handle("DELETE /api/post/{id}", WithAuth(http.HandlerFunc(postHandler.HandleDeletePost)))
+	apiMux.Handle("DELETE /post/{id}", WithAuth(http.HandlerFunc(postHandler.HandleDeletePost)))
 	apiMux.Handle("GET /post/{id}/upvote", WithAuth(http.HandlerFunc(postHandler.HandleUpvote)))
 	apiMux.Handle("GET /post/{id}/downvote", WithAuth(http.HandlerFunc(postHandler.HandleDownvote)))
 	apiMux.Handle("GET /post/{id}/unvote", WithAuth(http.HandlerFunc(postHandler.HandleUnvote)))
