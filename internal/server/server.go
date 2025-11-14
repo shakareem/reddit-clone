@@ -14,12 +14,13 @@ type RedditCloneServer struct {
 }
 
 func NewServer() RedditCloneServer {
-	storage := storage.NewInMemoryStorage()
+	storage := storage.NewInMemStorage()
 	userHandler := handlers.NewUserHandler(storage)
+	postHandler := handlers.NewPostHandler(storage)
 
 	mux := http.NewServeMux()
 	registerStaticHandlers(mux)
-	reqisterAPIHandlers(mux, userHandler)
+	reqisterAPIHandlers(mux, userHandler, &postHandler)
 
 	log.Println("Starting server on :8081")
 	server := &http.Server{
@@ -48,10 +49,11 @@ func registerStaticHandlers(mux *http.ServeMux) {
 	mux.Handle("/static/", http.StripPrefix("/static/", staticHandler))
 }
 
-func reqisterAPIHandlers(mux *http.ServeMux, userHandler *handlers.UserHandler) {
+func reqisterAPIHandlers(mux *http.ServeMux, userHandler *handlers.UserHandler, postHandler *handlers.PostHandler) {
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("POST /register", userHandler.HandleRegister)
 	apiMux.HandleFunc("POST /login", userHandler.HandleLogIn)
+	apiMux.HandleFunc("POST /posts", postHandler.HandleNewPost)
 
 	mux.Handle("/api/", http.StripPrefix("/api", apiMux))
 }

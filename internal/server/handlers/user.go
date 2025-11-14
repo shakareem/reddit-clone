@@ -14,7 +14,7 @@ import (
 var jwtSecret = []byte("abc") // tmp
 
 type UserHandler struct {
-	Storage storage.Storage
+	Storage storage.UserStorage
 }
 
 type LogInRequest struct {
@@ -22,7 +22,7 @@ type LogInRequest struct {
 	Password string `json:"password"`
 }
 
-func NewUserHandler(storage storage.Storage) *UserHandler {
+func NewUserHandler(storage storage.UserStorage) *UserHandler {
 	return &UserHandler{Storage: storage}
 }
 
