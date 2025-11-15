@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"redditclone/internal/storage"
 	"sort"
@@ -49,20 +50,16 @@ func (h *PostHandler) HandleDeletePost(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(USER).(UserClaims)
 	postID := r.PathValue("id")
 
-	post, err := h.Storage.GetPost(postID)
+	err := h.Storage.DeletePost(postID, user.ID)
 	if err != nil {
-		http.Error(w, `{"message":"invalid post id"}`, http.StatusBadRequest)
-		return
-	}
+		var statusCode int
+		if errors.As(err, storage.ErrPostNotFound) {
+			statusCode = http.StatusBadRequest
+		} else if errors.As(err, storage.ErrPermissionDenied) {
+			statusCode = http.StatusForbidden
+		}
 
-	if post.Author.ID != user.ID {
-		http.Error(w, `{"message":"permission denied"}`, http.StatusForbidden)
-		return
-	}
-
-	err = h.Storage.DeletePost(postID)
-	if err != nil {
-		http.Error(w, `{"message":"invalid post id"}`, http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("{\"message\":\"%s\"}", err.Error()), statusCode)
 		return
 	}
 
@@ -179,21 +176,60 @@ func handleVote(w http.ResponseWriter, r *http.Request, voteFunc func(id, userID
 	}
 }
 
-func WithAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		inToken := ""
-		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-			inToken = authHeader[7:]
-		}
-		claims, err := parseJWT(inToken)
-		if err != nil {
-			http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
-			return
+type Comment struct {
+	Comment string `json:"comment"`
+}
+
+func (h *PostHandler) handleAddComment(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value(USER).(UserClaims)
+
+	var comment struct {
+		Message string `json:"comment"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&comment)
+	if err != nil {
+		http.Error(w, `{"message":"invalid comment POST body"}`, http.StatusBadRequest)
+		return
+	}
+
+	postID := r.PathValue("id")
+	post, err := h.Storage.AddComment(postID, user.ID, user.Name, comment.Message)
+	if err != nil {
+		http.Error(w, `{"message":"invalid post id"}`, http.StatusBadRequest)
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(&post)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, []RequestError{{
+			Location: "post",
+			Message:  "Failed to encode post",
+		}})
+	}
+}
+
+func (h *PostHandler) handleDeleteComment(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value(USER).(UserClaims)
+	postID, commentID := r.PathValue("postID"), r.PathValue("commentID")
+
+	post, err := h.Storage.DeleteComment(postID, user.ID, commentID)
+	if err != nil {
+		var statusCode int
+		if errors.As(err, storage.ErrPostNotFound) {
+			statusCode = http.StatusBadRequest
+		} else if errors.As(err, storage.ErrPermissionDenied) {
+			statusCode = http.StatusForbidden
 		}
 
-		ctx := context.WithValue(r.Context(), USER, claims.User)
+		http.Error(w, fmt.Sprintf("{\"message\":\"%s\"}", err.Error()), statusCode)
+		return
+	}
 
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+	err = json.NewEncoder(w).Encode(&post)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, []RequestError{{
+			Location: "post",
+			Message:  "Failed to encode post",
+		}})
+	}
 }

@@ -2,7 +2,7 @@ package storage
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"slices"
 	"sync"
 	"time"
@@ -63,18 +63,26 @@ type Post struct {
 
 type PostStorage interface {
 	AddPost(rawPost RawPost, authorName string, authorID string) Post
-	DeletePost(id string) error
+	DeletePost(postID, userID string) error
 	GetPosts() []Post
 	GetPost(id string) (Post, error)
 	UpvotePost(postID, userID string) (Post, error)
 	DownvotePost(postID, userID string) (Post, error)
 	UnvotePost(postID, userID string) (Post, error)
+	AddComment(postID, userID, username, message string) (Post, error)
+	DeleteComment(postID, userID, commentID string) (Post, error)
 }
 
 type PostInMemStorage struct {
 	posts map[string]Post
 	mu    *sync.RWMutex
 }
+
+var (
+	ErrPostNotFound     = errors.New("post with given id not found")
+	ErrCommentNotFound  = errors.New("comment with given id not found")
+	ErrPermissionDenied = errors.New("permission denied")
+)
 
 func NewPostInMemStorage() *PostInMemStorage {
 	return &PostInMemStorage{map[string]Post{}, &sync.RWMutex{}}
@@ -159,13 +167,17 @@ func (s *PostInMemStorage) AddPost(rawPost RawPost, authorName string, authorID 
 	return post
 }
 
-func (s *PostInMemStorage) DeletePost(id string) error {
-	_, ok := s.posts[id]
+func (s *PostInMemStorage) DeletePost(postID, userID string) error {
+	post, ok := s.posts[postID]
 	if !ok {
-		return fmt.Errorf("post with id %s not found", id)
+		return ErrPostNotFound
 	}
 
-	delete(s.posts, id)
+	if post.Author.ID != userID {
+		return ErrPermissionDenied
+	}
+
+	delete(s.posts, postID)
 	return nil
 }
 
@@ -181,7 +193,7 @@ func (s *PostInMemStorage) GetPosts() []Post {
 func (s *PostInMemStorage) GetPost(id string) (Post, error) {
 	post, ok := s.posts[id]
 	if !ok {
-		return Post{}, fmt.Errorf("post with id %s not found", id)
+		return Post{}, ErrPostNotFound
 	}
 
 	return post, nil
@@ -190,7 +202,7 @@ func (s *PostInMemStorage) GetPost(id string) (Post, error) {
 func (s *PostInMemStorage) UpvotePost(postID, userID string) (Post, error) {
 	post, ok := s.posts[postID]
 	if !ok {
-		return Post{}, fmt.Errorf("post with id %s not found", postID)
+		return Post{}, ErrPostNotFound
 	}
 	oldVote, found := updateVote(&post, userID, UPVOTE)
 	if found && oldVote == UPVOTE {
@@ -210,7 +222,7 @@ func (s *PostInMemStorage) UpvotePost(postID, userID string) (Post, error) {
 func (s *PostInMemStorage) DownvotePost(postID, userID string) (Post, error) {
 	post, ok := s.posts[postID]
 	if !ok {
-		return Post{}, fmt.Errorf("post with id %s not found", postID)
+		return Post{}, ErrPostNotFound
 	}
 	oldVote, found := updateVote(&post, userID, DOWNVOTE)
 	if found && oldVote == DOWNVOTE {
@@ -230,7 +242,7 @@ func (s *PostInMemStorage) DownvotePost(postID, userID string) (Post, error) {
 func (s *PostInMemStorage) UnvotePost(postID, userID string) (Post, error) {
 	post, ok := s.posts[postID]
 	if !ok {
-		return Post{}, fmt.Errorf("post with id %s not found", postID)
+		return Post{}, ErrPostNotFound
 	}
 	oldVote, found := updateVote(&post, userID, NOVOTE)
 	if found && oldVote == UPVOTE {
@@ -278,4 +290,54 @@ func countUpvotePercentage(votes []Vote) int {
 	}
 
 	return int(float64(upvotes) / float64(len(votes)) * 100)
+}
+
+func (s *PostInMemStorage) AddComment(postID, userID, username, message string) (Post, error) {
+	post, ok := s.posts[postID]
+	if !ok {
+		return Post{}, ErrPostNotFound
+	}
+
+	post.Comments = append(post.Comments, Comment{
+		ID:          uuid.NewString(),
+		Body:        message,
+		CreatedTime: time.Now().Format(time.RFC3339),
+		Author: PostAuthor{
+			Name: username,
+			ID:   userID,
+		},
+	})
+
+	s.posts[postID] = post
+	return post, nil
+}
+
+func (s *PostInMemStorage) DeleteComment(postID, userID, commentID string) (Post, error) {
+	post, ok := s.posts[postID]
+	if !ok {
+		return Post{}, ErrPostNotFound
+	}
+
+	found := false
+	for i, comment := range post.Comments {
+		if comment.ID == commentID {
+			if comment.Author.ID != userID {
+				return Post{}, ErrPermissionDenied
+			}
+
+			if i == len(post.Comments)-1 {
+				post.Comments = post.Comments[:len(post.Comments)-1]
+			} else {
+				post.Comments = slices.Delete(post.Comments, i, i+1)
+			}
+			found = true
+		}
+	}
+
+	if !found {
+		return Post{}, ErrCommentNotFound
+	}
+
+	s.posts[postID] = post
+	return post, nil
 }

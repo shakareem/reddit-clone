@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"redditclone/internal/storage"
 	"time"
 
@@ -50,4 +52,23 @@ func parseJWT(tokenString string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+func withAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		inToken := ""
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			inToken = authHeader[7:]
+		}
+		claims, err := parseJWT(inToken)
+		if err != nil {
+			http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), USER, claims.User)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
