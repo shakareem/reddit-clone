@@ -21,7 +21,7 @@ func NewUserHandler(storage storage.UserStorage) *UserHandler {
 	return &UserHandler{Storage: storage}
 }
 
-func (h *UserHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	var req LogInRequest
 
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -65,7 +65,7 @@ func (h *UserHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *UserHandler) HandleLogIn(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) handleLogIn(w http.ResponseWriter, r *http.Request) {
 	var req LogInRequest
 
 	err := json.NewDecoder(r.Body).Decode(&req)

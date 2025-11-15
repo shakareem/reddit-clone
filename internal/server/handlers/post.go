@@ -24,7 +24,7 @@ func NewPostHandler(storage storage.Storage) PostHandler {
 	}
 }
 
-func (h *PostHandler) HandleNewPost(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) handleNewPost(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(USER).(UserClaims)
 
 	rawPost := &storage.RawPost{}
@@ -46,7 +46,7 @@ func (h *PostHandler) HandleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *PostHandler) HandleDeletePost(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) handleDeletePost(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(USER).(UserClaims)
 	postID := r.PathValue("id")
 
@@ -66,7 +66,7 @@ func (h *PostHandler) HandleDeletePost(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"message":"success"}`))
 }
 
-func (h *PostHandler) HandleGetPosts(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) handleGetPosts(w http.ResponseWriter, r *http.Request) {
 	posts := h.Storage.GetPosts()
 
 	sort.Slice(posts, func(i, j int) bool {
@@ -82,7 +82,7 @@ func (h *PostHandler) HandleGetPosts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *PostHandler) HandleGetCategoryPosts(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) handleGetCategoryPosts(w http.ResponseWriter, r *http.Request) {
 	category := (r.PathValue("category"))
 
 	posts := []storage.Post{}
@@ -105,7 +105,7 @@ func (h *PostHandler) HandleGetCategoryPosts(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func (h *PostHandler) HandleGetUserPosts(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) handleGetUserPosts(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
 
 	posts := []storage.Post{}
@@ -130,7 +130,7 @@ func (h *PostHandler) HandleGetUserPosts(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func (h *PostHandler) HandleGetPostDetails(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) handleGetPostDetails(w http.ResponseWriter, r *http.Request) {
 	postID := r.PathValue("id")
 
 	post, err := h.Storage.GetPost(postID)
@@ -148,13 +148,13 @@ func (h *PostHandler) HandleGetPostDetails(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (h *PostHandler) HandleUpvote(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) handleUpvote(w http.ResponseWriter, r *http.Request) {
 	handleVote(w, r, h.Storage.UpvotePost)
 }
-func (h *PostHandler) HandleDownvote(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) handleDownvote(w http.ResponseWriter, r *http.Request) {
 	handleVote(w, r, h.Storage.DownvotePost)
 }
-func (h *PostHandler) HandleUnvote(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) handleUnvote(w http.ResponseWriter, r *http.Request) {
 	handleVote(w, r, h.Storage.UnvotePost)
 }
 
