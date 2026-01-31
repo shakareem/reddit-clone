@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"redditclone/internal/storage"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -58,8 +59,8 @@ func withAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		inToken := ""
-		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-			inToken = authHeader[7:]
+		if after, ok := strings.CutPrefix(authHeader, "Bearer "); ok {
+			inToken = after
 		}
 		claims, err := parseJWT(inToken)
 		if err != nil {
