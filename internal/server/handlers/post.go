@@ -53,9 +53,9 @@ func (h *PostHandler) handleDeletePost(w http.ResponseWriter, r *http.Request) {
 	err := h.Storage.DeletePost(postID, user.ID)
 	if err != nil {
 		var statusCode int
-		if errors.As(err, storage.ErrPostNotFound) {
+		if errors.Is(err, storage.ErrPostNotFound) {
 			statusCode = http.StatusBadRequest
-		} else if errors.As(err, storage.ErrPermissionDenied) {
+		} else if errors.Is(err, storage.ErrPermissionDenied) {
 			statusCode = http.StatusForbidden
 		}
 
@@ -215,9 +215,9 @@ func (h *PostHandler) handleDeleteComment(w http.ResponseWriter, r *http.Request
 	post, err := h.Storage.DeleteComment(postID, user.ID, commentID)
 	if err != nil {
 		var statusCode int
-		if errors.As(err, storage.ErrPostNotFound) {
+		if errors.Is(err, storage.ErrPostNotFound) {
 			statusCode = http.StatusBadRequest
-		} else if errors.As(err, storage.ErrPermissionDenied) {
+		} else if errors.Is(err, storage.ErrPermissionDenied) {
 			statusCode = http.StatusForbidden
 		}
 
